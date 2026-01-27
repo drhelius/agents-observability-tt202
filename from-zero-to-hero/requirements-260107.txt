@@ -1,4 +1,4 @@
-azure-ai-agentserver-agentframework==1.0.0b7
+azure-ai-agentserver-agentframework==1.0.0b9
 agent-framework==1.0.0b260107
 agent-framework-a2a==1.0.0b260107
 agent-framework-ag-ui==1.0.0b260107
@@ -16,3 +16,4 @@ agent-framework-mem0==1.0.0b260107
 agent-framework-ollama==1.0.0b260107
 agent-framework-purview==1.0.0b260107
 agent-framework-redis==1.0.0b260107
+azure-monitor-opentelemetry

@@ -40,6 +40,12 @@ From portal:
 
 ![alt text](images/bingconnectofoundry.png)
 
+Export variable:
+
+```bash
+export BING_PROJECT_CONNECTION_ID=<your-bing-connection-id>
+```
+
 
 ### Install the Agent Framework package
 
@@ -47,15 +53,26 @@ From portal:
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+# latest pip install agent-framework --pre
 pip list
 ```
 
-### Create an agent
+### Create agents
+
+**Using Foundry SDK**
 
 ```bash
-python agents-standalone/create_research_agent.py
-python agents-standalone/create_writer_agent.py
-python agents-standalone/create_reviewer_agent.py
+python agents-standalone/foundry/create_research_agent.py
+python agents-standalone/foundry/create_writer_agent.py
+python agents-standalone/foundry/create_reviewer_agent.py
+```
+
+**Using Microsoft Agent Framework**
+
+```bash
+python agents-standalone/maf/create_research_agent.py
+python agents-standalone/maf/create_writer_agent.py
+python agents-standalone/maf/create_reviewer_agent.py
 ```
 
 ### Publish the agent
@@ -69,7 +86,7 @@ You get a set of endpoints for the Researcher agent (responses api and activity 
 Use the responses endpoint to test the agent:
 
 ```bash
-export AGENT_NAME=ResearcherAgent
+export AGENT_NAME=ResearcherAgentV2
 python agents-client/agent_client.py "What are the latest AI trends?"
 ```
 
@@ -83,7 +100,7 @@ python orchestration/sequential_agents.py
 
 ## Deploy as hosted agent
 
-First, install required packages
+First, install required packages.
 
 ```bash
 pip install azure-ai-agentserver-agentframework

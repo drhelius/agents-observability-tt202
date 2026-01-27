@@ -19,7 +19,6 @@ from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.agentserver.agentframework import from_agent_framework
 
-logging.basicConfig(level=logging.INFO)
 
 """
 Sample: Group Chat with Agent-Based Manager
@@ -32,7 +31,7 @@ What it does:
 
 Prerequisites:
 - AZURE_AI_PROJECT_ENDPOINT environment variable configured
-- Agents (ResearcherAgent, WriterAgent, ReviewerAgent) created in Foundry
+- Agents (ResearcherAgentV2, WriterAgentV2, ReviewerAgentV2) created in Foundry
 """
 
 
@@ -101,9 +100,9 @@ async def main() -> None:
 
             # Create chat clients for the three Foundry agents
             print("Loading agents from Microsoft Foundry...")
-            researcher_client = await create_chat_client_for_agent(project_client, "ResearcherAgent")
-            writer_client = await create_chat_client_for_agent(project_client, "WriterAgent")
-            reviewer_client = await create_chat_client_for_agent(project_client, "ReviewerAgent")
+            researcher_client = await create_chat_client_for_agent(project_client, "ResearcherAgentV2")
+            writer_client = await create_chat_client_for_agent(project_client, "WriterAgentV2")
+            reviewer_client = await create_chat_client_for_agent(project_client, "ReviewerAgentV2")
             coordinator_client = await create_chat_client_for_coordinator(project_client)
             print("✓ All agents loaded successfully\n")
 
@@ -148,7 +147,7 @@ async def main() -> None:
 
             workflow = (
                 GroupChatBuilder()
-                .set_manager(coordinator, display_name="Orchestrator")
+                .set_manager(coordinator)
                 .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
                 .participants([researcher, writer, reviewer])
                 .build()

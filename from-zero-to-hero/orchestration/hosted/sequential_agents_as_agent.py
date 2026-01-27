@@ -16,7 +16,6 @@ from agent_framework import (
     handler,
 )
 from agent_framework.azure import AzureAIClient
-from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.agentserver.agentframework import from_agent_framework
@@ -24,16 +23,16 @@ from azure.ai.agentserver.agentframework import from_agent_framework
 """
 Sample: Sequential workflow with Foundry agents using Executors
 
-Sequential Workflow: ResearcherAgent -> WriterAgent -> ReviewerAgent
+Sequential Workflow: ResearcherAgentV2 -> WriterAgentV2 -> ReviewerAgentV2
 
 This workflow orchestrates three Azure agents in sequence:
-1. ResearcherAgent: Processes the initial user message using web search
-2. WriterAgent: Takes the researcher's output and generates content
-3. ReviewerAgent: Reviews and finalizes the content
+1. ResearcherAgentV2: Processes the initial user message using web search
+2. WriterAgentV2: Takes the researcher's output and generates content
+3. ReviewerAgentV2: Reviews and finalizes the content
 
 Prerequisites:
 - AZURE_AI_PROJECT_ENDPOINT environment variable configured
-- Agents (ResearcherAgent, WriterAgent, ReviewerAgent) created in Foundry
+- Agents (ResearcherAgentV2, WriterAgentV2, ReviewerAgentV2) created in Foundry
 """
 
 
@@ -58,7 +57,7 @@ async def create_chat_client_for_agent(
     )
 
 
-class ResearcherAgentExecutor(Executor):
+class ResearcherAgentV2Executor(Executor):
     """
     First agent in the sequential workflow.
     Processes the initial user message and passes results to the next agent.
@@ -66,24 +65,14 @@ class ResearcherAgentExecutor(Executor):
 
     agent: ChatAgent
 
-    def __init__(self, project_client: AIProjectClient, id: str = "ResearcherAgent"):
-        # Create the researcher agent with Foundry client
-        client = AzureAIClient(
-            project_client=project_client,
-            agent_name="ResearcherAgent",
-            use_latest_version=True,
-        )
-        self.agent = ChatAgent(
-            name="Researcher",
-            description="Collects relevant information using web search",
-            chat_client=client,
-        )
+    def __init__(self, agent: ChatAgent, id: str = "ResearcherAgentV2"):
+        self.agent = agent
         super().__init__(id=id)
 
     @handler
     async def handle(self, message: ChatMessage | list[ChatMessage], ctx: WorkflowContext[list[ChatMessage]]) -> None:
         """
-        Handle the initial message and forward the conversation to WriterAgent.
+        Handle the initial message and forward the conversation to WriterAgentV2.
 
         Args:
             message: The initial user message
@@ -96,7 +85,7 @@ class ResearcherAgentExecutor(Executor):
 
         response = await self.agent.run(messages)
 
-        print(f"\nResearcherAgent output:")
+        print(f"\nResearcherAgentV2 output:")
         print(f"{response.messages[-1].text[:500]}..." if len(
             response.messages[-1].text) > 500 else response.messages[-1].text)
 
@@ -104,40 +93,31 @@ class ResearcherAgentExecutor(Executor):
         await ctx.send_message(messages)
 
 
-class WriterAgentExecutor(Executor):
+class WriterAgentV2Executor(Executor):
     """
     Second agent in the sequential workflow.
-    Receives output from ResearcherAgent and generates content.
+    Receives output from ResearcherAgentV2 and generates content.
     """
 
     agent: ChatAgent
 
-    def __init__(self, project_client: AIProjectClient, id: str = "WriterAgent"):
-        # Create the writer agent with Foundry client
-        client = AzureAIClient(
-            project_client=project_client,
-            agent_name="WriterAgent",
-            use_latest_version=True,
-        )
-        self.agent = ChatAgent(
-            name="Writer",
-            description="Creates well-structured content based on research",
-            chat_client=client,
-        )
+    def __init__(self, agent: ChatAgent, id: str = "WriterAgentV2"):
+        self.agent = agent
         super().__init__(id=id)
 
     @handler
     async def handle(self, messages: list[ChatMessage], ctx: WorkflowContext[list[ChatMessage]]) -> None:
         """
-        Process the researcher's output and forward to ReviewerAgent.
+        Process the researcher's output and forward to ReviewerAgentV2.
 
         Args:
-            message: Message or conversation history from ResearcherAgent
+            message: Message or conversation history from ResearcherAgentV2
             ctx: Workflow context for sending messages to downstream agents
         """
+
         response = await self.agent.run(messages)
 
-        print(f"\nWriterAgent output:")
+        print(f"\nWriterAgentV2 output:")
         print(f"{response.messages[-1].text[:500]}..." if len(
             response.messages[-1].text) > 500 else response.messages[-1].text)
 
@@ -145,7 +125,7 @@ class WriterAgentExecutor(Executor):
         await ctx.send_message(messages)
 
 
-class ReviewerAgentExecutor(Executor):
+class ReviewerAgentV2Executor(Executor):
     """
     Third and final agent in the sequential workflow.
     Reviews the content and yields the final output.
@@ -153,18 +133,8 @@ class ReviewerAgentExecutor(Executor):
 
     agent: ChatAgent
 
-    def __init__(self, project_client: AIProjectClient, id: str = "ReviewerAgent"):
-        # Create the reviewer agent with Foundry client
-        client = AzureAIClient(
-            project_client=project_client,
-            agent_name="ReviewerAgent",
-            use_latest_version=True,
-        )
-        self.agent = ChatAgent(
-            name="Reviewer",
-            description="Evaluates content quality and provides constructive feedback",
-            chat_client=client,
-        )
+    def __init__(self, agent: ChatAgent, id: str = "ReviewerAgentV2"):
+        self.agent = agent
         super().__init__(id=id)
 
     @handler
@@ -178,7 +148,7 @@ class ReviewerAgentExecutor(Executor):
         """
         response = await self.agent.run(messages)
 
-        print(f"\nReviewerAgent output:")
+        print(f"\nReviewerAgentV2 output:")
         print(f"{response.messages[-1].text[:500]}..." if len(
             response.messages[-1].text) > 500 else response.messages[-1].text)
 
@@ -202,21 +172,46 @@ async def main() -> None:
             credential=credential
         ) as project_client:
 
-            print("Building sequential workflow with Foundry agents...\n")
+            # Create chat clients for the three Foundry agents
+            print("Loading agents from Microsoft Foundry...")
+            researcher_client = await create_chat_client_for_agent(project_client, "ResearcherAgentV2")
+            writer_client = await create_chat_client_for_agent(project_client, "WriterAgentV2")
+            reviewer_client = await create_chat_client_for_agent(project_client, "ReviewerAgentV2")
+            print("✓ All agents loaded successfully\n")
+
+            # Create agents using the Foundry clients
+            researcher = ChatAgent(
+                name="Researcher",
+                description="Collects relevant information using web search",
+                chat_client=researcher_client,
+            )
+
+            writer = ChatAgent(
+                name="Writer",
+                description="Creates well-structured content based on research",
+                chat_client=writer_client,
+            )
+
+            reviewer = ChatAgent(
+                name="Reviewer",
+                description="Evaluates content quality and provides constructive feedback",
+                chat_client=reviewer_client,
+            )
 
             # Build the workflow using the executor pattern
-            # Executors will create their agents during initialization
+            # This mirrors the sequential structure: Researcher -> Writer -> Reviewer
             workflow = (
                 WorkflowBuilder()
-                # Register executors with lazy instantiation, passing project_client
-                .register_executor(lambda: ResearcherAgentExecutor(project_client), name="ResearcherAgent")
-                .register_executor(lambda: WriterAgentExecutor(project_client), name="WriterAgent")
-                .register_executor(lambda: ReviewerAgentExecutor(project_client), name="ReviewerAgent")
+                # Register executors with lazy instantiation
+                .register_executor(lambda: ResearcherAgentV2Executor(researcher), name="ResearcherAgentV2")
+                .register_executor(lambda: WriterAgentV2Executor(writer), name="WriterAgentV2")
+                .register_executor(lambda: ReviewerAgentV2Executor(reviewer), name="ReviewerAgentV2")
                 # Define the sequential flow: Researcher -> Writer -> Reviewer
-                .add_edge("ResearcherAgent", "WriterAgent")
-                .add_edge("WriterAgent", "ReviewerAgent")
+                .add_edge("ResearcherAgentV2", "WriterAgentV2")
+                .add_edge("WriterAgentV2", "ReviewerAgentV2")
                 # Set the entry point
-                .set_start_executor("ResearcherAgent")
+                .set_start_executor("ResearcherAgentV2")
+                # .set_start_executor("WriterAgentV2")
                 .build()
             )
 
