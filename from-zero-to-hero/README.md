@@ -15,9 +15,17 @@ az login
 ```bash
 export RG=<your-resource-group>
 export LOCATION=<your-location> # one that supports hosted agents, e.g., northcentralus
+export AGENTS_HOME=from-zero-to-hero
+```
+
+Move to `AGENTS_HOME`:
+```bash
+cd $AGENTS_HOME
 ```
 
 #### Install resources
+
+Before deploying the infra resources, check the file `infra/basic-setup.parameters.json` to set the location and resource names you want.
 
 ```bash
 az group create --name $RG --location $LOCATION
@@ -28,8 +36,9 @@ az deployment group create --resource-group $RG --template-file infra/basic-setu
 Update env variables with outputs from deployment
 
 ```bash
-export FOUNDRY_RESOURCE_NAME=<your-foundry-resource-name>
-export FOUNDRY_PROJECT_NAME=<your-foundry-project-name>
+# get vars from deployment output
+export FOUNDRY_RESOURCE_NAME=$(az deployment group show --resource-group $RG --name basic-setup --query properties.outputs.accountName.value -o tsv)
+export FOUNDRY_PROJECT_NAME=$(az deployment group show --resource-group $RG --name basic-setup --query properties.outputs.projectName.value -o tsv) 
 export AZURE_AI_PROJECT_ENDPOINT="https://$FOUNDRY_RESOURCE_NAME.services.ai.azure.com/api/projects/$FOUNDRY_PROJECT_NAME"
 export AZURE_AI_MODEL_DEPLOYMENT_NAME="gpt-4.1"  # or your deployment name
 ```
@@ -43,21 +52,38 @@ From portal:
 Export variable:
 
 ```bash
-export BING_PROJECT_CONNECTION_ID=<your-bing-connection-id>
+export BING_CONNECTION_NAME=<your-bing-connection-name> 
+export SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+export BING_PROJECT_CONNECTION_ID="/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.CognitiveServices/accounts/$FOUNDRY_RESOURCE_NAME/projects/$FOUNDRY_PROJECT_NAME/connections/$BING_CONNECTION_NAME"
 ```
 
 
-### Install the Agent Framework package
+### Create venv and install the Agent Framework packages
+
+As of Feb 4, 2026, I will create two venvs:
+- venv260130 for latest MAF packages (260130)
+- venv260107 for previous MAF packages (260107) and compatible with azure-ai-agentserver-agentframework 1.0.0b10
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-# latest pip install agent-framework --pre
+python3 -m venv venv260130
+source venv260130/bin/activate
+pip install -r requirements-260130.txt
 pip list
+deactivate
+python3 -m venv venv260107
+source venv260107/bin/activate
+pip install -r requirements-260107.txt
+pip list
+deactivate
 ```
 
 ### Create agents
+
+Activate latest venv:
+
+```bash
+source venv260130/bin/activate
+```
 
 **Using Foundry SDK**
 
@@ -97,6 +123,29 @@ Test the sequential agents workflow
 ```bash
 python orchestration/sequential_agents.py
 ```
+
+Test the group chat agent workflow
+
+```bash
+python orchestration/group_chat_agent_manager.py
+```
+
+## Build as Agent and trace the workflow locally
+
+As per today (Feb 4, 2026), we have to use the previous venv (260107) to build the orchestration as an agent.
+
+Activate the previous venv:
+
+```bash
+deactivate
+source venv260107/bin/activate
+```
+
+Use AI Toolkit to generate tracing configuration over a copy of the orchestration/group_chat_agent_manager.py file in  orchestration/tracing/group_chat_agent_manager.py.
+
+Open the Microsoft Foundry extension and start the Local Agent Playground.
+
+
 
 ## Deploy as hosted agent
 

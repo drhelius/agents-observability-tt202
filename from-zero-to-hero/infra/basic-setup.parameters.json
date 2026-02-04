@@ -3,14 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "location": {
-      // swedencentral si no quiero hosted agents.
       "value": "northcentralus" 
     },
     "aiServicesName": {
-      "value": "tc2026ain"
+      "value": "tc2026dr"
     },
     "projectName": {
-      "value": "techconnect2026ncus"
+      "value": "techconnect2026ncusdr"
     },
     "modelName": {
       "value": "gpt-4.1"

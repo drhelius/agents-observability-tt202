@@ -1,4 +1,4 @@
-azure-ai-agentserver-agentframework==1.0.0b9 # inconpatible: with 260127
+azure-ai-agentserver-agentframework==1.0.0b10 # inconpatible:     azure-ai-agentserver-agentframework 1.0.0b10 depends on agent-framework-azure-ai<=1.0.0b260107 and >=1.0.0b251112
 agent-framework==1.0.0b260127
 agent-framework-a2a==1.0.0b260127
 agent-framework-ag-ui==1.0.0b260127

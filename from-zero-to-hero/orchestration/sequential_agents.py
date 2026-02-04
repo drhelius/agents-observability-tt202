@@ -210,7 +210,6 @@ async def main() -> None:
                 .add_edge("WriterAgentV2", "ReviewerAgentV2")
                 # Set the entry point
                 .set_start_executor("ResearcherAgentV2")
-                # .set_start_executor("WriterAgentV2")
                 .build()
             )
 

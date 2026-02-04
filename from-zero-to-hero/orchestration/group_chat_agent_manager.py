@@ -18,6 +18,7 @@ from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
 
+
 """
 Sample: Group Chat with Agent-Based Manager
 
@@ -145,7 +146,7 @@ async def main() -> None:
 
             workflow = (
                 GroupChatBuilder()
-                .set_manager(coordinator)
+                .with_orchestrator(agent=coordinator)
                 .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
                 .participants([researcher, writer, reviewer])
                 .build()

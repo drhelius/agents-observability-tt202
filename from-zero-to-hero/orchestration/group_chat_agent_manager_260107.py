@@ -18,7 +18,6 @@ from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
 
-
 """
 Sample: Group Chat with Agent-Based Manager
 
