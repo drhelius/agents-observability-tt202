@@ -231,9 +231,13 @@ It takes a few minutes to build and deploy the agent. Once it's deployed, you ca
 
 **Important:** Before testing, we need to give permission to the Foundry Project Managed Identity. Use the portal to give "Azure AI User" role over the Foundry project.
 
-### Publish and test
+You can now test the hosted agent from the portal or even better, from the Hosted Agent Playground in the Microsoft Foundry extension, select the `groupchatwriter` or `sequentialwriter` agent and version to finally test it with a prompt:
 
-Publish the hosted agents in Foundry portal so you have the endpoints to test it. Then, test the Group Chat hosted agent:
+TODO : add image
+
+
+Optionally, you can also test it using the responses endpoint as before, just changing the AGENT_NAME to the name of the hosted agent. Remember that you must publish the hosted agent in Foundry portal first.º
+
 
 ```bash
 export AGENT_NAME=groupchatwriter
@@ -242,50 +246,19 @@ python agents-client/agent_client.py "Write a short article about the latest AI 
 
 ## Observability
 
+Althought the agent is running and responding to prompts, we don't have visibility into what is happening inside the agent. For that, we will use Application Insights and OpenTelemetry to add observability to our agents.
+
 ### Configure Application Insights
 
-Setup an Application Insights resource connected to the Foundry project.
+Setup an Application Insights resource connected to the Foundry project. Move to  `Operate/Admin/<choose project>/Connected Resources/Application Insights`:
 
-Make it in the Foundry portal: Operate/Admin/<choose project>/Connected Resources/Application Insights
+TODO: add image
 
-Run some tests:
+Now, run some tests from the playground to generate some traces.
 
-```bash
-export AGENT_NAME=researchgrchatwf
-python agents-client/agent_client.py "What are the latest AI trends?"
-```
 
 REVIEW THIS: 
 
 See that data is flowing into Application Insights without any code changes. 
 See Traces & Monitor in Foundry portal.
 See Application Insights in Azure portal/Agents. (Note: I only see traces in "search". Tables are empty, only  dependency table has some data).
-
-### Add observability using AI Toolkit
-
-Use Ai Toolkit to generate tracing configuration over a copy of the orchestration/hosted/group_chat_agent_manager_as_agent.py file (see result in orchestration/tracing/group_chat_agent_manager_as_agent.py).
-
-IMPORTANT: start the Local Agent Playground in the Microsoft Foundry extension first.
-
-Then change port 4319 and execute:
-
-```bash
-python orchestration/tracing/group_chat_agent_manager_as_agent.py
-```
-
-Test it using the Local Agent Playground from the Microsoft Foundry extension:
-
-![alt text](images/localtraces.png)
-
-### Deploy new version of the traced hosted agent
-
-Use the Microsoft Foundry extension to deploy the traced version of the group chat hosted agent (orchestration/tracing/group_chat_agent_manager_as_agent.py).
-
-Then, pubslish and test again:
-
-```bash
-export AGENT_NAME=researchgrchatwf
-python agents-client/agent_client.py "Write a short article about the latest AI trends."
-```
-
-
