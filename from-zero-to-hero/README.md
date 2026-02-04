@@ -121,13 +121,13 @@ python agents-client/agent_client.py "What are the latest AI trends?"
 Test the sequential agents workflow
 
 ```bash
-python orchestration/sequential_agents.py
+python orchestration/demo/sequential_agents.py
 ```
 
 Test the group chat agent workflow
 
 ```bash
-python orchestration/group_chat_agent_manager.py
+python orchestration/demo/group_chat_agent_manager.py
 ```
 
 ## Build as Agent and trace the workflow locally
@@ -141,25 +141,59 @@ deactivate
 source venv260107/bin/activate
 ```
 
-Use AI Toolkit to generate tracing configuration over a copy of the orchestration/group_chat_agent_manager.py file in  orchestration/tracing/group_chat_agent_manager.py.
+### Workflow as agent
 
-Open the Microsoft Foundry extension and start the Local Agent Playground.
+First, we will adapt the workflow to become an agent. For that, we will use the `azure-ai-agentserver-agentframework` library to expose the workflow as agent. The relevant code is:
 
+```python
+      agentwf = workflow.as_agent()
+      await from_agent_framework(agentwf).run_async()
+```
+
+### Instrument the agent
+
+
+We will use the  `AI Toolkit` extension to generate tracing configuration. Open the agent under `orchestration/tracing/group_chat_agent_manager_as_agent.py` and enable tracing using the helper from the extension (you can also apply it to the sequential_agents_as_agent.py if you want): 
+
+TODO: add image
+
+The extension will use Github Copilot to generate the tracing configuration code:
+
+TODO: add image
+
+### Run and test locally
+
+We will now use the `Microsoft Foundry` extension to test the agent and explore traces. First, open the Microsoft Foundry extension and start the Local Agent Playground.
+
+TODO: add image
+
+Then, run the traced agent locally:
+
+```bash
+python orchestration/tracing/group_chat_agent_manager_as_agent.py
+```
+
+Test it using the Local Agent Playground from the Microsoft Foundry extension and see the agent run and traces:
+
+TODO : add image
 
 
 ## Deploy as hosted agent
 
-First, install required packages.
+### Understand folder structure
 
-```bash
-pip install azure-ai-agentserver-agentframework
-```
+In order to deploy the workflow as a hosted agent in Foundry, we will need to create several files under the agent's folder:
 
-Run locally:
+- the agent code: `orchestration/hosted/groupchat/group_chat_agent_manager_as_agent.py`
+- a `requirements.txt` file with the dependencies
+- a `Dockerfile` to build the container image
+- a .env file with environment variables that are then injected into the container. The minimum required variables are:
+    ```
+    AZURE_AI_PROJECT_ENDPOINT=
+    AZURE_AI_MODEL_DEPLOYMENT_NAME=
+    ```
 
-```bash
-python orchestration/hosted/sequential_agents_as_agent.py
-```
+
 
 Test it using the Local Agent Playground from the Microsoft Foundry extension. Notice no traces yet.
 

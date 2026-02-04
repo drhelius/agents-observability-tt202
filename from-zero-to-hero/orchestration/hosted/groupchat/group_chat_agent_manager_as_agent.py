@@ -14,9 +14,11 @@ from agent_framework import (
     WorkflowOutputEvent,
 )
 from agent_framework.azure import AzureAIClient, AzureOpenAIChatClient
+from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
+from azure.ai.agentserver.agentframework import from_agent_framework
 
 
 """
@@ -86,6 +88,13 @@ async def create_chat_client_for_coordinator(
 
 
 async def main() -> None:
+    ### Set up for OpenTelemetry tracing ###
+    configure_otel_providers(
+        vs_code_extension_port=4319,  # AI Toolkit gRPC port
+        enable_sensitive_data=True  # Enable capturing prompts and completions
+    )
+    ### Set up for OpenTelemetry tracing ###
+
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
         raise ValueError(
@@ -127,61 +136,34 @@ async def main() -> None:
             )
 
             researcher = ChatAgent(
-                name="Researcher",
+                name="ResearcherV2",
                 description="Collects relevant information using web search",
                 chat_client=researcher_client,
             )
 
             writer = ChatAgent(
-                name="Writer",
+                name="WriterV2",
                 description="Creates well-structured content based on research",
                 chat_client=writer_client,
             )
 
             reviewer = ChatAgent(
-                name="Reviewer",
+                name="ReviewerV2",
                 description="Evaluates content quality and provides constructive feedback",
                 chat_client=reviewer_client,
             )
 
             workflow = (
                 GroupChatBuilder()
-                .with_orchestrator(agent=coordinator)
+                .set_manager(coordinator)
                 .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
                 .participants([researcher, writer, reviewer])
                 .build()
             )
 
-            task = "Research and write a comprehensive article about the impact of AI agents in software development. Include recent trends and real-world examples."
-
-            print("Starting Group Chat with Agent-Based Manager...\n")
-            print(f"TASK: {task}\n")
-            print("=" * 80)
-
-            final_conversation: list[ChatMessage] = []
-            last_executor_id: str | None = None
-            async for event in workflow.run_stream(task):
-                if isinstance(event, AgentRunUpdateEvent):
-                    eid = event.executor_id
-                    if eid != last_executor_id:
-                        if last_executor_id is not None:
-                            print()
-                        print(f"{eid}:", end=" ", flush=True)
-                        last_executor_id = eid
-                    print(event.data, end="", flush=True)
-                elif isinstance(event, WorkflowOutputEvent):
-                    final_conversation = cast(list[ChatMessage], event.data)
-
-            if final_conversation and isinstance(final_conversation, list):
-                print("\n\n" + "=" * 80)
-                print("FINAL CONVERSATION")
-                print("=" * 80)
-                for msg in final_conversation:
-                    author = getattr(msg, "author_name", "Unknown")
-                    text = getattr(msg, "text", str(msg))
-                    print(f"\n[{author}]")
-                    print(text)
-                    print("-" * 80)
+            # make the workflow an agent and ready to be hosted
+            agentwf = workflow.as_agent()
+            await from_agent_framework(agentwf).run_async()
 
 
 if __name__ == "__main__":

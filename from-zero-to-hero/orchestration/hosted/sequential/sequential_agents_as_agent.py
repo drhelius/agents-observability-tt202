@@ -16,6 +16,7 @@ from agent_framework import (
     handler,
 )
 from agent_framework.azure import AzureAIClient
+from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.agentserver.agentframework import from_agent_framework
@@ -161,6 +162,13 @@ async def main() -> None:
     """
     Build and run the sequential workflow using agents from Microsoft Foundry.
     """
+    ### Set up for OpenTelemetry tracing ###
+    configure_otel_providers(
+        vs_code_extension_port=4319,  # AI Toolkit gRPC port
+        enable_sensitive_data=True  # Enable capturing prompts and completions
+    )
+    ### Set up for OpenTelemetry tracing ###
+
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
         raise ValueError(
@@ -211,14 +219,12 @@ async def main() -> None:
                 .add_edge("WriterAgentV2", "ReviewerAgentV2")
                 # Set the entry point
                 .set_start_executor("ResearcherAgentV2")
-                # .set_start_executor("WriterAgentV2")
                 .build()
             )
 
             # make the workflow an agent and ready to be hosted
             agentwf = workflow.as_agent()
             await from_agent_framework(agentwf).run_async()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

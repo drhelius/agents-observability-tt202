@@ -14,13 +14,11 @@ from agent_framework import (
     WorkflowOutputEvent,
 )
 from agent_framework.azure import AzureAIClient, AzureOpenAIChatClient
-from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.agentserver.agentframework import from_agent_framework
 
-logging.basicConfig(level=logging.INFO)
 
 """
 Sample: Group Chat with Agent-Based Manager
@@ -33,7 +31,7 @@ What it does:
 
 Prerequisites:
 - AZURE_AI_PROJECT_ENDPOINT environment variable configured
-- Agents (ResearcherAgent, WriterAgent, ReviewerAgent) created in Foundry
+- Agents (ResearcherAgentV2, WriterAgentV2, ReviewerAgentV2) created in Foundry
 """
 
 
@@ -89,13 +87,6 @@ async def create_chat_client_for_coordinator(
 
 
 async def main() -> None:
-    ### Set up for OpenTelemetry tracing ###
-    configure_otel_providers(
-        vs_code_extension_port=4319,  # AI Toolkit gRPC port
-        enable_sensitive_data=True  # Enable capturing prompts and completions
-    )
-    ### Set up for OpenTelemetry tracing ###
-
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
         raise ValueError(
@@ -109,9 +100,9 @@ async def main() -> None:
 
             # Create chat clients for the three Foundry agents
             print("Loading agents from Microsoft Foundry...")
-            researcher_client = await create_chat_client_for_agent(project_client, "ResearcherAgent")
-            writer_client = await create_chat_client_for_agent(project_client, "WriterAgent")
-            reviewer_client = await create_chat_client_for_agent(project_client, "ReviewerAgent")
+            researcher_client = await create_chat_client_for_agent(project_client, "ResearcherAgentV2")
+            writer_client = await create_chat_client_for_agent(project_client, "WriterAgentV2")
+            reviewer_client = await create_chat_client_for_agent(project_client, "ReviewerAgentV2")
             coordinator_client = await create_chat_client_for_coordinator(project_client)
             print("✓ All agents loaded successfully\n")
 
@@ -137,26 +128,26 @@ async def main() -> None:
             )
 
             researcher = ChatAgent(
-                name="Researcher",
+                name="ResearcherV2",
                 description="Collects relevant information using web search",
                 chat_client=researcher_client,
             )
 
             writer = ChatAgent(
-                name="Writer",
+                name="WriterV2",
                 description="Creates well-structured content based on research",
                 chat_client=writer_client,
             )
 
             reviewer = ChatAgent(
-                name="Reviewer",
+                name="ReviewerV2",
                 description="Evaluates content quality and provides constructive feedback",
                 chat_client=reviewer_client,
             )
 
             workflow = (
                 GroupChatBuilder()
-                .set_manager(coordinator, display_name="Orchestrator")
+                .set_manager(coordinator)
                 .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
                 .participants([researcher, writer, reviewer])
                 .build()
