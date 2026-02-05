@@ -195,6 +195,7 @@ curl -X POST http://localhost:8088/responses \
 In order to deploy the workflow as a hosted agent in Foundry, we will need to create several files under the agent's folder:
 
 - the agent code: `orchestration/hosted/groupchat/group_chat_agent_manager_as_agent.py`
+- a python file with the OpenTelemetry configuration for Azure Monitor: `orchestration/hosted/groupchat/observability.py`. This file will be used to configure the OpenTelemetry providers to send traces to Azure Monitor. We need this file because the configuration for Azure Monitor is different than the one for local tracing with AI Toolkit, so we need to separate the configuration and import the correct one depending on where we are running (locally with AI Toolkit or as hosted agent in Foundry).
 - a `requirements.txt` file with the dependencies
 - a `Dockerfile` to build the container image
 - a .env file with environment variables that are then injected into the container. For this demo, the required variables are:
