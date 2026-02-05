@@ -190,6 +190,12 @@ curl -X POST http://localhost:8088/responses \
 
 ## Deploy as hosted agent
 
+### Observability configuration for Azure Monitor
+
+To get traces in `Microsoft Foundry`, we need to connect our Foundry project to an Application Insights resource. The application insights resource has been already created in the infrastructure deployment step, so you just need to connect it to the Foundry project. To do that, go to the Foundry portal and navigate to `Operate/Admin/<choose project>/Connected Resources/Application Insights` and connect the Application Insights resource that was created in the infrastructure step:
+
+TODO: add image
+
 ### Understand folder structure
 
 In order to deploy the workflow as a hosted agent in Foundry, we will need to create several files under the agent's folder:
@@ -218,7 +224,7 @@ Also, we need to create a `.foundry/.deployment.json` file to define the hosted 
 }
 ```
 
-You can try without this file and you will be asked to fill in the deployment options in the Microsoft Foundry extension UI when you click on Deploy, but the final deployment will fail as the context is just the root of the project and not the folder where the Dockerfile is.
+You can try without this file and you will be asked to fill in the deployment options in the Microsoft Foundry extension UI when you click on Deploy, but the final deployment will fail as the context is just the root of the project and not the folder where the Dockerfile is (that is defult behavior of the extension).
 
 To avoid this, you can copy the content from `orchestration/hosted/groupchat/.foundry/.deployment.json` to the root `.foundry/.deployment.json` before deploying, or just update the paths in the existing root `.foundry/.deployment.json` to point to the correct Dockerfile and context.
 
@@ -244,18 +250,6 @@ Optionally, you can also test it using the responses endpoint as before, just ch
 export AGENT_NAME=groupchatwriter
 python agents-client/agent_client.py "Write a short article about the latest AI trends."
 ```
-
-## Observability
-
-Although the agent is running and responding to prompts, we don't have visibility into what is happening inside the agent. For that, we will use Application Insights and OpenTelemetry to add observability to our agents.
-
-### Configure Application Insights
-
-To get those traces in `Microsoft Foundry`, we need to connect our Foundry project to an Application Insights resource. The application insights resource has been already created in the infrastructure deployment step, so you just need to connect it to the Foundry project. To do that, go to the Foundry portal and navigate to `Operate/Admin/<choose project>/Connected Resources/Application Insights` and connect the Application Insights resource that was created in the infrastructure step:
-
-TODO: add image
-
-Now, run some tests from the playground to generate some traces.
 
 ### Explore traces
 
