@@ -170,7 +170,7 @@ TODO: add image
 Then, run the traced agent locally:
 
 ```bash
-python orchestration/tracing/group_chat_agent_manager_as_agent.py
+python orchestration/tracing/solution/group_chat_agent_manager_as_agent.py
 ```
 
 Test it using the Local Agent Playground from the Microsoft Foundry extension and see the agent run and traces:

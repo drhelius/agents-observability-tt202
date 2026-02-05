@@ -14,6 +14,7 @@ from agent_framework import (
     WorkflowOutputEvent,
 )
 from agent_framework.azure import AzureAIClient, AzureOpenAIChatClient
+from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
@@ -87,6 +88,12 @@ async def create_chat_client_for_coordinator(
 
 
 async def main() -> None:
+    # Set up OpenTelemetry tracing
+    configure_otel_providers(
+        vs_code_extension_port=4317,  # AI Toolkit gRPC port
+        enable_sensitive_data=True  # Enable capturing prompts and completions
+    )
+
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
         raise ValueError(
@@ -148,7 +155,7 @@ async def main() -> None:
             workflow = (
                 GroupChatBuilder()
                 .set_manager(coordinator)
-                .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
+                .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 6)
                 .participants([researcher, writer, reviewer])
                 .build()
             )

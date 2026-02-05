@@ -155,7 +155,7 @@ async def main() -> None:
             workflow = (
                 GroupChatBuilder()
                 .set_manager(coordinator)
-                .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 8)
+                .with_termination_condition(lambda messages: sum(1 for msg in messages if msg.role == Role.ASSISTANT) >= 6)
                 .participants([researcher, writer, reviewer])
                 .build()
             )
