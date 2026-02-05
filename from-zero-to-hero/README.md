@@ -251,7 +251,7 @@ Althought the agent is running and responding to prompts, we don't have visibili
 
 ### Configure Application Insights
 
-Setup an Application Insights resource connected to the Foundry project. Move to  `Operate/Admin/<choose project>/Connected Resources/Application Insights`:
+To get those traces in `Microsoft Foundry`, we need to connect our Foundry project to an Application Insights resource. The application insights resource has been already created in the infrastructure deployment step, so you just need to connect it to the Foundry project. To do that, go to the Foundry portal and navigate to `Operate/Admin/<choose project>/Connected Resources/Application Insights` and connect the Application Insights resource that was created in the infrastructure step:
 
 TODO: add image
 
