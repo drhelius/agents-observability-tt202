@@ -1,7 +1,6 @@
 # Copyright (c) Microsoft. All rights reserved.
 
 import asyncio
-from asyncio.log import logger
 import os
 from typing import Never
 
@@ -17,11 +16,10 @@ from agent_framework import (
     handler,
 )
 from agent_framework.azure import AzureAIClient
+from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
-from observability import configure_azure_monitor_tracing
 from azure.identity.aio import DefaultAzureCredential
 from azure.ai.agentserver.agentframework import from_agent_framework
-
 
 """
 Sample: Sequential workflow with Foundry agents using Executors
@@ -164,6 +162,12 @@ async def main() -> None:
     """
     Build and run the sequential workflow using agents from Microsoft Foundry.
     """
+    ### Set up for OpenTelemetry tracing ###
+    configure_otel_providers(
+        vs_code_extension_port=4319,  # AI Toolkit gRPC port
+        enable_sensitive_data=True  # Enable capturing prompts and completions
+    )
+    ### Set up for OpenTelemetry tracing ###
 
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
@@ -175,10 +179,6 @@ async def main() -> None:
             endpoint=os.environ["AZURE_AI_PROJECT_ENDPOINT"],
             credential=credential
         ) as project_client:
-
-            # Configure Azure Monitor tracing
-            if not await configure_azure_monitor_tracing(project_client):
-                return
 
             # Create chat clients for the three Foundry agents
             print("Loading agents from Microsoft Foundry...")

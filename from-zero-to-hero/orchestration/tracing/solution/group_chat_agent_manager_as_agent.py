@@ -14,7 +14,7 @@ from agent_framework import (
     WorkflowOutputEvent,
 )
 from agent_framework.azure import AzureAIClient, AzureOpenAIChatClient
-from observability import configure_azure_monitor_tracing
+from agent_framework.observability import configure_otel_providers
 from azure.ai.projects.aio import AIProjectClient
 from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential
@@ -88,7 +88,12 @@ async def create_chat_client_for_coordinator(
 
 
 async def main() -> None:
-
+    ### Set up for OpenTelemetry tracing ###
+    configure_otel_providers(
+        vs_code_extension_port=4319,  # AI Toolkit gRPC port
+        enable_sensitive_data=True  # Enable capturing prompts and completions
+    )
+    ### Set up for OpenTelemetry tracing ###
 
     # Verify environment variables
     if not os.environ.get("AZURE_AI_PROJECT_ENDPOINT"):
@@ -100,10 +105,6 @@ async def main() -> None:
             endpoint=os.environ["AZURE_AI_PROJECT_ENDPOINT"],
             credential=credential
         ) as project_client:
-            
-            # Configure Azure Monitor tracing
-            if not await configure_azure_monitor_tracing(project_client):
-                return
 
             # Create chat clients for the three Foundry agents
             print("Loading agents from Microsoft Foundry...")

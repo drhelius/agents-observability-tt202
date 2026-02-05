@@ -256,9 +256,12 @@ TODO: add image
 
 Now, run some tests from the playground to generate some traces.
 
+### Explore traces
 
-REVIEW THIS: 
+Under the `Traces` tab, click on the `Trace ID` and you would see a similar output to this:
 
-See that data is flowing into Application Insights without any code changes. 
-See Traces & Monitor in Foundry portal.
-See Application Insights in Azure portal/Agents. (Note: I only see traces in "search". Tables are empty, only  dependency table has some data).
+TODO: add image
+
+You can also explore the metrics direcly from Application Insights:
+
+TODO: add image
