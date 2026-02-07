@@ -2,6 +2,47 @@
 
 This document explains the distributed tracing implementation in the fraud detection workflow, covering initialization, span creation, business events, and metrics.
 
+First off, let's understand some basics:
+
+| Component | Purpose | Example |
+|-----------|---------|---------|
+| **Spans** | Track units of work | Each agent (CustomerData → RiskAnalyser → FraudAlert) |
+| **Attributes** | Static metadata for filtering/searching | customer_id, risk_score, alert.severity |
+| **Events** | Timestamped milestones | "Cache miss", "Risk calculation complete" |
+| **Metrics** | Aggregated KPIs | Risk score distribution, alerts created, amount blocked |
+
+
+On our workflow, we will see this reflected like the following:
+
+```mermaid
+flowchart LR
+    subgraph Traces["Trace Hierarchy"]
+        ROOT[Root Span: fraud_detection_workflow]
+        
+        ROOT --> S1[CustomerDataAgent Span]
+        ROOT --> S2[RiskAnalyserAgent Span]
+        ROOT --> S3[FraudAlertAgent Span]
+        
+        S1 --> S1A[Attributes: agent.name, transaction_id, customer_id]
+        S1 --> S1E[Events: customer_data.started/completed]
+        S1 --> S1M[Metric: transactions.processed]
+        
+        S2 --> S2A[Attributes: risk.score, risk.level, recommendation]
+        S2 --> S2E[Events: risk_analysis.started/completed, model.prediction]
+        S2 --> S2M[Metrics: risk_score, model.confidence, friction]
+        
+        S3 --> S3A[Attributes: alert.created, alert.severity]
+        S3 --> S3E[Events: fraud_alert.started/completed, fraud.prevented]
+        S3 --> S3M[Metrics: alerts.created, amount_blocked, sar_filed]
+    end
+
+    style Traces fill:transparent,stroke:transparent
+    style ROOT fill:#8E44AD,stroke:#5B2C6F,color:#fff
+    style S1 fill:#27AE60,stroke:#1E8449,color:#fff
+    style S2 fill:#E67E22,stroke:#A04000,color:#fff
+    style S3 fill:#E74C3C,stroke:#922B21,color:#fff
+```
+
 ## Core Components
 
 ### 1. Initialization
