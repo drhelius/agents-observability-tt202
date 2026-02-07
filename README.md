@@ -1,27 +1,29 @@
 # TechTalk: E2E Observability on Multi-Agent Systems using the Microsoft Agent Framework & OTEL
 
+Session delivered on the 11th of February at Tech Connect 2026
+
 ## 🎯 Session Goals
 
-- Master MAF to build and publish Agents v2 on Foundry.
-- Learn multi-agent orchestration and observability with OpenTelemetry.
-- Apply production-ready observability for developers and BDMs using dashboards, KPIs, and fraud detection.
+- Master the Microsoft Agent Framework (MAF) to build and publish Agents v2 on Foundry
+- Learn multi-agent orchestration with sequential workflows and OpenTelemetry instrumentation
+- Apply production-ready observability patterns for both developers and Business Decision Makers
 
 ## 📋 Session Abstract
 
-This session explores advanced multi-agent development and observability using Microsoft Foundry and the Microsoft Agent Framework (MAF). Attendees will gain practical insights into building and orchestrating agents, applying observability frameworks, and leveraging real-world scenarios to deliver actionable metrics for developers and business decision-makers. 
-This session also sharers the current model we are using to skill our customers on these topics.
+This session explores end-to-end observability for multi-agent systems using Microsoft Foundry and the Microsoft Agent Framework (MAF). Through a real-world fraud detection scenario, attendees will build three specialized agents, instrument them with OpenTelemetry, and create dashboards that serve both technical teams and business stakeholders. The workshop demonstrates how observability data flows from distributed traces to executive Power BI dashboards—ensuring AI systems remain transparent, auditable, and trustworthy.
 
 ## 🎯 Key Audience Takeaways
 
-- Accelerate your learning curve on the newest Microsoft Agent Framework and Microsoft Foundry Agents v2
-- Visualize enterprise tracing in Application Insights with built-in and custom metrics
-- Create real-time dashboards for enterprise monitoring
+- Build and orchestrate Foundry Agents v2 using the Microsoft Agent Framework
+- Implement the 3-tier observability framework: spans, business metrics, and custom events
+- Create Application Insights workbooks and Power BI dashboards for real-time monitoring
+- Deploy containerized agents with tracing that works identically in local and production environments
 
-## 🎬 Repository Flow
+## Repository Flow
 
 ### From Zero to Hero – Observability for Multi-Agent Development
 
-👉 **[Detailed Guide: From Zero to Hero →](./from-zero-to-hero/README.md)**
+👉 **[From Zero to Hero](./from-zero-to-hero/README.md)**
 
 **Building Foundry Agents with Microsoft Agent Framework**
 
@@ -35,22 +37,62 @@ Orchestrate you agents and test them using Local Playground from the Microsoft F
 
 Learn how to deploy local multi-agent orchestration to become a hosted agent in Microsoft Foundry. Enable built-in observability through OpenTelemetry.
 
-### Production-Ready Observability of your System for Developers and BDMs
+### Production-Ready Observability of your System for Developers and BDMs 
 
-👉 **[Detailed Guide: Production-Ready Observability →](./production-ready-observability/README.md)**
+👉 **[Production-Ready Observability](./production-ready-observability/README.md)**
 
-**Observability Framework applied to Fraud Detection**
+#### What we are building:
+```mermaid
+flowchart LR
+    subgraph Input
+        TX[/"Transaction Request"/]
+    end
+    
+    subgraph Agents["Fraud Detection Workflow"]
+        A1[("CustomerDataAgent<br/>―――――――――<br/>Cosmos DB")]
+        A2[("RiskAnalyserAgent<br/>―――――――――<br/>AI Search")]
+        A3[("FraudAlertAgent<br/>―――――――――<br/>Decision Engine")]
+    end
+    
+    subgraph Output
+        D1[/"✓ Approved"/]
+        D2[/"⚠ Investigate"/]
+        D3[/"✗ Blocked"/]
+    end
+    
+    subgraph Observability["Telemetry Pipeline"]
+        T1["Spans & Traces"]
+        T2["Business Metrics"]
+        T3["Custom Events"]
+    end
+    
+    TX --> A1
+    A1 -->|"Customer Profile<br/>+ History"| A2
+    A2 -->|"Risk Score<br/>+ Factors"| A3
+    A3 --> D1
+    A3 --> D2
+    A3 --> D3
+    
+    A1 -.-> T1
+    A2 -.-> T2
+    A3 -.-> T3
+    
+    T1 --> AI["Application Insights"]
+    T2 --> AI
+    T3 --> AI
+    
+    AI --> WB["Workbooks"]
+    AI --> PBI["Power BI"]
+```
 
-Understanding the spans and custom metrics creation and applying the 3-tier tracking framework (application, workflow, executor).  
-Creation of the monitoring system with custom metrics adapted to our UC.
+#### How are we building?
 
-**Observability for Developers**
-
-Leveraging Azure Application Insights to understand the default and custom metrics using the Agents Pane, Dashboards with Grafana and Custom Workbook.
-
-**Observability for BDMs**
-
-How are the agent metrics being propagated through our customers' organization? We will learn how to ship real-time KPIs to BDMs either using App Insights or using PowerBI's DirectQuery.
+| Part | Focus | Duration | Description |
+|------|-------|----------|-------------|
+| **Part 1** | Infrastructure Deployment | ~15 min | Deploy Azure resources (AI Services, Cosmos DB, AI Search, App Insights) and seed sample data for the fraud detection scenario |
+| **Part 2** | Create the Tracing Engine | ~30 min | Understanding spans and custom metrics creation. Run individual agents, orchestrate workflows, and generate telemetry with OpenTelemetry using the 3-tier tracking framework |
+| **Part 3** | Visualize Traces and Logs | ~25 min | Leveraging Azure Application Insights workbooks, Grafana dashboards, and building Power BI dashboards to ship real-time KPIs to Business Decision Makers |
+| **Part 4** | Deploy to Production | ~10 min | How tracing works seamlessly in containers—same code, same traces, whether running locally or in Azure Container Apps |
 
 ### Additional resources
 
@@ -76,4 +118,10 @@ Learn how we are skilling-up our customers with these additional resources from 
 
 ## 📧 Contact & Support
 
-For questions or feedback, feel free to open an issue or reach out to the maintainers.
+For questions or feedback, feel free to open an issue or reach out to the maintainers:
+
+| Name | Email |
+|------|-------|
+| David Sancho Ruiz | dsanchoruiz@microsoft.com |
+| Marta Santos | martasantos@microsoft.com |
+| Renato Ribeiro | renribeiro@microsoft.com |
