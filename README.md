@@ -1,3 +1,6 @@
+
+![banner](images/banner.png)
+
 # TechTalk: E2E Observability on Multi-Agent Systems using the Microsoft Agent Framework & OTEL
 
 Session delivered on the 11th of February at Tech Connect 2026
