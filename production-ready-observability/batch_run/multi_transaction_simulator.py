@@ -19,16 +19,22 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from workflows.workflow import (
     run_fraud_detection_workflow,
-    get_project_client,
-    _project_client,
-    _credential,
 )
 from workflows.telemetry import (
-    initialize_telemetry,
     flush_telemetry,
-    get_telemetry_manager,
     send_business_event,
 )
+
+def _get_telemetry_manager():
+    """Get the telemetry manager from workflow module (same singleton)."""
+    from workflows.workflow import telemetry
+    return telemetry
+
+def _initialize_telemetry():
+    """Initialize telemetry via the workflow's singleton."""
+    tm = _get_telemetry_manager()
+    if not tm._initialized:
+        tm.initialize_observability()
 
 
 # Available transactions from the seed data
@@ -184,8 +190,8 @@ async def run_batch_simulation(
         BatchRunSummary with statistics and results
     """
     # Initialize telemetry
-    initialize_telemetry()
-    telemetry = get_telemetry_manager()
+    _initialize_telemetry()
+    telemetry = _get_telemetry_manager()
     
     summary = BatchRunSummary()
     summary.total_transactions = num_transactions
@@ -337,13 +343,7 @@ def print_batch_summary(summary: BatchRunSummary, total_batch_time: float):
 
 async def cleanup():
     """Clean up resources after batch run."""
-    global _project_client, _credential
-    from workflows.workflow import _project_client, _credential
-    
-    if _project_client:
-        await _project_client.close()
-    if _credential:
-        await _credential.close()
+    pass  # No async resources to clean up with OpenAIChatClient
 
 
 # Preset simulation modes

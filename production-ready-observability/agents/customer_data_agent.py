@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 cosmos_endpoint = os.environ.get("COSMOS_ENDPOINT")
-cosmos_key = os.environ.get("COSMOS_KEY")
 
 # Initialize Cosmos DB clients globally for function tools (conditional)
 customers_container = None
 transactions_container = None
-if cosmos_endpoint and cosmos_key:
+if cosmos_endpoint:
     try:
-        cosmos_client = CosmosClient(cosmos_endpoint, cosmos_key)
+        from azure.identity import DefaultAzureCredential
+        cosmos_client = CosmosClient(cosmos_endpoint, credential=DefaultAzureCredential())
         database = cosmos_client.get_database_client("FinancialComplianceDB")
         customers_container = database.get_container_client("Customers")
         transactions_container = database.get_container_client("Transactions")
@@ -43,7 +43,7 @@ if cosmos_endpoint and cosmos_key:
     except Exception as e:
         logger.warning(f"Could not connect to Cosmos DB: {e}. Using mock data.")
 else:
-    logger.warning("Cosmos DB credentials not found. Using mock data. Set COSMOS_ENDPOINT and COSMOS_KEY in .env file.")
+    logger.warning("Cosmos DB endpoint not found. Using mock data. Set COSMOS_ENDPOINT in .env file.")
 
 
 async def get_customer_data(

@@ -64,6 +64,9 @@ param modelSkuName string = 'GlobalStandard'
 @description('The capacity of the model deployment in TPM.')
 param modelCapacity int = 30
 
+@description('The principal ID of the deployer to assign RBAC roles. If empty, no role assignments are created.')
+param deployerPrincipalId string = ''
+
 // ============================================================================
 // Step 1: Create AI Services Account
 // ============================================================================
@@ -252,11 +255,57 @@ resource searchService 'Microsoft.Search/searchServices@2024-03-01-preview' = {
     hostingMode: 'default'
     publicNetworkAccess: 'enabled'
     semanticSearch: 'free'
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http403'
+      }
+    }
   }
 }
 
 // ============================================================================
 // Outputs
+// ============================================================================
+
+// ============================================================================
+// Step 8: RBAC Role Assignments for AAD-based access
+// ============================================================================
+
+// Cosmos DB Built-in Data Contributor (read/write data)
+resource cosmosDbRoleAssignment 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = if (!empty(deployerPrincipalId)) {
+  parent: cosmosDbAccount
+  name: guid(cosmosDbAccount.id, deployerPrincipalId, '00000000-0000-0000-0000-000000000002')
+  properties: {
+    roleDefinitionId: '${cosmosDbAccount.id}/sqlRoleDefinitions/00000000-0000-0000-0000-000000000002'
+    principalId: deployerPrincipalId
+    scope: cosmosDbAccount.id
+  }
+}
+
+// Search Service Contributor (manage indexes)
+resource searchServiceContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(searchService.id, deployerPrincipalId, '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
+  scope: searchService
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7ca78c08-252a-4471-8644-bb5ff32d4ba0')
+    principalId: deployerPrincipalId
+    principalType: 'User'
+  }
+}
+
+// Search Index Data Contributor (read/write index data)
+resource searchIndexDataContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(searchService.id, deployerPrincipalId, '8ebe5a00-799e-43f5-93ac-243d3dce84a7')
+  scope: searchService
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8ebe5a00-799e-43f5-93ac-243d3dce84a7')
+    principalId: deployerPrincipalId
+    principalType: 'User'
+  }
+}
+
+// ============================================================================
+// Outputs (continued)
 // ============================================================================
 output accountName string = account.name
 output projectName string = project.name

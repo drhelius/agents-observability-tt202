@@ -88,6 +88,8 @@ if [[ -z "${AI_FOUNDRY_PROJECT_NAME}" ]]; then
   echo "  ⚠️  No AI Foundry project found. You may need to set AI_FOUNDRY_PROJECT_NAME and AI_FOUNDRY_PROJECT_ENDPOINT manually."
   AI_FOUNDRY_PROJECT_ENDPOINT=""
 else
+  # ARM returns child resource names as "parent/child" — strip the parent prefix
+  AI_FOUNDRY_PROJECT_NAME="${AI_FOUNDRY_PROJECT_NAME##*/}"
   echo "  AI Foundry project: ${AI_FOUNDRY_PROJECT_NAME}"
   # Construct the correct AI Foundry Project endpoint format
   AI_FOUNDRY_PROJECT_ENDPOINT="https://${AI_ACCOUNT_NAME}.services.ai.azure.com/api/projects/${AI_FOUNDRY_PROJECT_NAME}"
@@ -123,16 +125,11 @@ COSMOS_ACCOUNT_NAME=$(az cosmosdb list \
   --query "[0].name" -o tsv 2>/dev/null || echo "")
 
 COSMOS_ENDPOINT=""
-COSMOS_KEY=""
 if [[ -n "${COSMOS_ACCOUNT_NAME}" ]]; then
   COSMOS_ENDPOINT=$(az cosmosdb show \
     --resource-group "${RESOURCE_GROUP}" \
     --name "${COSMOS_ACCOUNT_NAME}" \
     --query "documentEndpoint" -o tsv)
-  COSMOS_KEY=$(az cosmosdb keys list \
-    --resource-group "${RESOURCE_GROUP}" \
-    --name "${COSMOS_ACCOUNT_NAME}" \
-    --query "primaryMasterKey" -o tsv)
   echo "  Cosmos DB account: ${COSMOS_ACCOUNT_NAME}"
 else
   echo "  ⚠️  No Cosmos DB account found. Agents will run without database."
@@ -148,13 +145,8 @@ SEARCH_SERVICE_NAME=$(az resource list \
   --query "[0].name" -o tsv 2>/dev/null || echo "")
 
 AZURE_SEARCH_ENDPOINT=""
-AZURE_SEARCH_API_KEY=""
 if [[ -n "${SEARCH_SERVICE_NAME}" ]]; then
   AZURE_SEARCH_ENDPOINT="https://${SEARCH_SERVICE_NAME}.search.windows.net"
-  AZURE_SEARCH_API_KEY=$(az search admin-key show \
-    --resource-group "${RESOURCE_GROUP}" \
-    --service-name "${SEARCH_SERVICE_NAME}" \
-    --query "primaryKey" -o tsv 2>/dev/null || echo "")
   echo "  Azure AI Search: ${SEARCH_SERVICE_NAME}"
 else
   echo "  ⚠️  No Azure AI Search found. Risk analyser will run without knowledge base."
@@ -187,11 +179,9 @@ OTLP_ENDPOINT=http://localhost:4317
 
 # Cosmos DB
 COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
-COSMOS_KEY=${COSMOS_KEY}
 
 # Azure AI Search (for regulations knowledge base)
 AZURE_SEARCH_ENDPOINT=${AZURE_SEARCH_ENDPOINT}
-AZURE_SEARCH_API_KEY=${AZURE_SEARCH_API_KEY}
 EOF
 
 echo ""

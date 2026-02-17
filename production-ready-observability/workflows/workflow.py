@@ -29,9 +29,9 @@ from agent_framework import (
     WorkflowRunState,
     handler,
 )
-from agent_framework.azure import AzureAIClient
-from azure.ai.projects.aio import AIProjectClient
-from azure.identity.aio import DefaultAzureCredential
+from agent_framework.openai import OpenAIChatClient
+from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential, get_bearer_token_provider
+from openai import AsyncAzureOpenAI
 
 # Add paths for imports
 import sys, os as _os
@@ -128,37 +128,41 @@ class FraudAlertResponse(BaseModel):
 
 
 # ============================================================================
-# Shared Client Management for Batch Processing
+# Shared OpenAI Client Management
 # ============================================================================
 
-_project_client: AIProjectClient | None = None
-_credential: DefaultAzureCredential | None = None
+_openai_client: AsyncAzureOpenAI | None = None
 
-async def get_project_client() -> AIProjectClient:
-    """Get or create the shared AIProjectClient for batch processing."""
-    global _project_client, _credential
-    if _project_client is None:
-        _credential = DefaultAzureCredential()
-        _project_client = AIProjectClient(
-            endpoint=os.environ["AI_FOUNDRY_PROJECT_ENDPOINT"],
-            credential=_credential,
+def get_openai_client() -> AsyncAzureOpenAI:
+    """Get or create the shared AsyncAzureOpenAI client."""
+    global _openai_client
+    if _openai_client is None:
+        token_provider = get_bearer_token_provider(
+            SyncDefaultAzureCredential(),
+            "https://cognitiveservices.azure.com/.default",
         )
-    return _project_client
+        _openai_client = AsyncAzureOpenAI(
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+            azure_ad_token_provider=token_provider,
+            api_version="2024-10-21",
+        )
+    return _openai_client
+
+
+def get_model_id() -> str:
+    """Get the model deployment name from environment."""
+    return os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4")
 
 
 # ============================================================================
-# Helper to create AzureAIClient for Foundry agents
+# Helper to create OpenAIChatClient
 # ============================================================================
 
-async def create_chat_client_for_agent(
-    project_client: AIProjectClient,
-    agent_name: str
-) -> AzureAIClient:
-    """Create an AzureAIClient for a Foundry agent."""
-    return AzureAIClient(
-        project_client=project_client,
-        agent_name=agent_name,
-        use_latest_version=True,
+def create_chat_client() -> OpenAIChatClient:
+    """Create an OpenAIChatClient using Azure OpenAI."""
+    return OpenAIChatClient(
+        async_client=get_openai_client(),
+        model_id=get_model_id(),
     )
 
 
@@ -521,33 +525,45 @@ async def run_fraud_detection_workflow(
     Returns:
         FraudAlertResponse with the workflow result
     """
-    project_client = await get_project_client()
+    # Ensure telemetry is initialized (handles cross-module singleton issue)
+    if not telemetry._initialized:
+        telemetry.initialize_observability()
     
-    # Create chat clients for agents
-    customer_data_client = await create_chat_client_for_agent(project_client, CUSTOMER_DATA_AGENT_NAME)
-    risk_analyser_client = await create_chat_client_for_agent(project_client, RISK_ANALYSER_AGENT_NAME)
-    fraud_alert_client = await create_chat_client_for_agent(project_client, FRAUD_ALERT_AGENT_NAME)
+    chat_client = create_chat_client()
     
     # Create ChatAgent instances with tools
     customer_data_agent = ChatAgent(
         name="CustomerDataAgent",
         description="Retrieves customer data from Cosmos DB",
-        chat_client=customer_data_client,
+        chat_client=chat_client,
         tools=[get_customer_data, get_customer_transactions],
+        instructions="""You are a Data Ingestion Agent responsible for preparing structured input for fraud detection.
+You will receive raw transaction records and customer profiles. Your task is to:
+- Normalize fields (e.g., currency, timestamps, amounts)
+- Remove or flag incomplete data
+- Enrich each transaction with relevant customer metadata (e.g., account age, country, device info)
+- Output a clean JSON object per transaction with unified structure
+Use the available functions to fetch customer data and transactions.""",
     )
     
     risk_analyser_agent = ChatAgent(
         name="RiskAnalyserAgent",
         description="Analyzes transaction risk",
-        chat_client=risk_analyser_client,
+        chat_client=create_chat_client(),
         tools=[analyze_transaction_risk],
+        instructions="""You are a Risk Analysis Agent. Evaluate transactions for fraud risk using regulations and policies.
+Provide a risk score (0-100), risk level (LOW/MEDIUM/HIGH), and recommendation (ALLOW/INVESTIGATE/BLOCK).
+Use the available functions to search regulations and analyze risk.""",
     )
     
     fraud_alert_agent = ChatAgent(
         name="FraudAlertAgent",
         description="Creates fraud alerts",
-        chat_client=fraud_alert_client,
+        chat_client=create_chat_client(),
         tools=[create_fraud_alert, get_fraud_alert],
+        instructions="""You are a Fraud Alert Agent. Based on risk analysis results, determine if a fraud alert should be created.
+If risk score >= 40, create a fraud alert. Otherwise explain why no alert is needed.
+Use the available functions to create and manage fraud alerts.""",
     )
     
     # Build workflow
@@ -582,107 +598,114 @@ async def run_fraud_detection_workflow(
 # ============================================================================
 
 async def main():
-    """Run the fraud detection workflow using portal-hosted agents."""
+    """Run the fraud detection workflow."""
     
     # Initialize observability
     initialize_telemetry()
     
-    if not os.environ.get("AI_FOUNDRY_PROJECT_ENDPOINT"):
-        raise ValueError("AI_FOUNDRY_PROJECT_ENDPOINT environment variable is required")
+    if not os.environ.get("AZURE_OPENAI_ENDPOINT"):
+        raise ValueError("AZURE_OPENAI_ENDPOINT environment variable is required")
 
-    async with DefaultAzureCredential() as credential:
-        async with AIProjectClient(
-            endpoint=os.environ["AI_FOUNDRY_PROJECT_ENDPOINT"],
-            credential=credential
-        ) as project_client:
+    # Create OpenAI chat clients for the three agents
+    print("Creating agent chat clients...")
+    customer_data_client = create_chat_client()
+    risk_analyser_client = create_chat_client()
+    fraud_alert_client = create_chat_client()
+    print("✓ All agents ready\n")
 
-            # Create chat clients for the three Foundry agents
-            print("Loading agents from Azure AI Foundry...")
-            customer_data_client = await create_chat_client_for_agent(project_client, CUSTOMER_DATA_AGENT_NAME)
-            risk_analyser_client = await create_chat_client_for_agent(project_client, RISK_ANALYSER_AGENT_NAME)
-            fraud_alert_client = await create_chat_client_for_agent(project_client, FRAUD_ALERT_AGENT_NAME)
-            print("✓ All agents loaded successfully\n")
+    # Create ChatAgent instances with tools registered for local execution
+    customer_data_agent = ChatAgent(
+        name="CustomerDataAgent",
+        description="Retrieves customer data from Cosmos DB",
+        chat_client=customer_data_client,
+        tools=[get_customer_data, get_customer_transactions],
+        instructions="""You are a Data Ingestion Agent responsible for preparing structured input for fraud detection.
+You will receive raw transaction records and customer profiles. Your task is to:
+- Normalize fields (e.g., currency, timestamps, amounts)
+- Remove or flag incomplete data
+- Enrich each transaction with relevant customer metadata (e.g., account age, country, device info)
+- Output a clean JSON object per transaction with unified structure
+Use the available functions to fetch customer data and transactions.""",
+    )
 
-            # Create ChatAgent instances with tools registered for local execution
-            customer_data_agent = ChatAgent(
-                name="CustomerDataAgent",
-                description="Retrieves customer data from Cosmos DB",
-                chat_client=customer_data_client,
-                tools=[get_customer_data, get_customer_transactions],
+    risk_analyser_agent = ChatAgent(
+        name="RiskAnalyserAgent",
+        description="Analyzes transaction risk",
+        chat_client=risk_analyser_client,
+        tools=[analyze_transaction_risk],
+        instructions="""You are a Risk Analysis Agent. Evaluate transactions for fraud risk using regulations and policies.
+Provide a risk score (0-100), risk level (LOW/MEDIUM/HIGH), and recommendation (ALLOW/INVESTIGATE/BLOCK).
+Use the available functions to search regulations and analyze risk.""",
+    )
+
+    fraud_alert_agent = ChatAgent(
+        name="FraudAlertAgent",
+        description="Creates fraud alerts",
+        chat_client=fraud_alert_client,
+        tools=[create_fraud_alert, get_fraud_alert],
+        instructions="""You are a Fraud Alert Agent. Based on risk analysis results, determine if a fraud alert should be created.
+If risk score >= 40, create a fraud alert. Otherwise explain why no alert is needed.
+Use the available functions to create and manage fraud alerts.""",
+    )
+
+    # Build the workflow
+    workflow = (
+        WorkflowBuilder()
+        .register_executor(lambda: CustomerDataAgentExecutor(customer_data_agent), name="CustomerDataAgent")
+        .register_executor(lambda: RiskAnalyserAgentExecutor(risk_analyser_agent), name="RiskAnalyserAgent")
+        .register_executor(lambda: FraudAlertAgentExecutor(fraud_alert_agent), name="FraudAlertAgent")
+        .add_edge("CustomerDataAgent", "RiskAnalyserAgent")
+        .add_edge("RiskAnalyserAgent", "FraudAlertAgent")
+        .set_start_executor("CustomerDataAgent")
+        .build()
+    )
+
+    with telemetry.create_workflow_span("fraud_detection_application") as main_span:
+        trace_id = get_current_trace_id()
+        print(f"\n🔍 Fraud Detection Workflow")
+        print(f"📊 Trace ID: {trace_id}")
+        print("=" * 70)
+
+        # Test transactions
+        test_cases = [
+            ("TX1001", "CUST1001", 5200.00, "USD"),
+            ("TX1005", "CUST1005", 15000.00, "USD"),
+        ]
+
+        for transaction_id, customer_id, amount, currency in test_cases:
+            print(f"\n{'='*70}")
+            print(f"Processing: Transaction {transaction_id}, Customer {customer_id}")
+            print(f"Amount: {amount} {currency}")
+            print(f"{'='*70}")
+
+            request = AnalysisRequest(
+                transaction_id=transaction_id,
+                customer_id=customer_id,
+                amount=amount,
+                currency=currency,
             )
 
-            risk_analyser_agent = ChatAgent(
-                name="RiskAnalyserAgent", 
-                description="Analyzes transaction risk",
-                chat_client=risk_analyser_client,
-                tools=[analyze_transaction_risk],
-            )
+            final_result = None
+            async for event in workflow.run_stream(request):
+                if isinstance(event, WorkflowStatusEvent):
+                    if event.state == WorkflowRunState.IDLE:
+                        print("✓ Workflow completed")
+                elif isinstance(event, WorkflowOutputEvent):
+                    final_result = event.data
 
-            fraud_alert_agent = ChatAgent(
-                name="FraudAlertAgent",
-                description="Creates fraud alerts",
-                chat_client=fraud_alert_client,
-                tools=[create_fraud_alert, get_fraud_alert],
-            )
+            if final_result:
+                print(f"\n📋 WORKFLOW RESULT:")
+                print(f"   Transaction: {final_result.transaction_id}")
+                print(f"   Customer: {final_result.customer_id}")
+                print(f"   Alert Created: {'✅ YES' if final_result.alert_created else '❌ NO'}")
+                print(f"   Status: {final_result.workflow_status}")
+                print(f"\n   Agent Response:")
+                print(f"   {final_result.alert_response[:500]}...")
 
-            # Build the workflow
-            workflow = (
-                WorkflowBuilder()
-                .register_executor(lambda: CustomerDataAgentExecutor(customer_data_agent), name="CustomerDataAgent")
-                .register_executor(lambda: RiskAnalyserAgentExecutor(risk_analyser_agent), name="RiskAnalyserAgent")
-                .register_executor(lambda: FraudAlertAgentExecutor(fraud_alert_agent), name="FraudAlertAgent")
-                .add_edge("CustomerDataAgent", "RiskAnalyserAgent")
-                .add_edge("RiskAnalyserAgent", "FraudAlertAgent")
-                .set_start_executor("CustomerDataAgent")
-                .build()
-            )
+        print(f"\n{'='*70}")
+        print(f"🔍 Trace completed: {trace_id}")
 
-            with telemetry.create_workflow_span("fraud_detection_application") as main_span:
-                trace_id = get_current_trace_id()
-                print(f"\n🔍 Fraud Detection Workflow (Portal-Hosted Agents)")
-                print(f"📊 Trace ID: {trace_id}")
-                print("=" * 70)
-
-                # Test transactions
-                test_cases = [
-                    ("TX1001", "CUST1001", 5200.00, "USD"),
-                    ("TX1005", "CUST1005", 15000.00, "USD"),
-                ]
-
-                for transaction_id, customer_id, amount, currency in test_cases:
-                    print(f"\n{'='*70}")
-                    print(f"Processing: Transaction {transaction_id}, Customer {customer_id}")
-                    print(f"Amount: {amount} {currency}")
-                    print(f"{'='*70}")
-
-                    request = AnalysisRequest(
-                        transaction_id=transaction_id,
-                        customer_id=customer_id,
-                        amount=amount,
-                        currency=currency,
-                    )
-
-                    final_result = None
-                    async for event in workflow.run_stream(request):
-                        if isinstance(event, WorkflowStatusEvent):
-                            if event.state == WorkflowRunState.IDLE:
-                                print("✓ Workflow completed")
-                        elif isinstance(event, WorkflowOutputEvent):
-                            final_result = event.data
-
-                    if final_result:
-                        print(f"\n📋 WORKFLOW RESULT:")
-                        print(f"   Transaction: {final_result.transaction_id}")
-                        print(f"   Customer: {final_result.customer_id}")
-                        print(f"   Alert Created: {'✅ YES' if final_result.alert_created else '❌ NO'}")
-                        print(f"   Status: {final_result.workflow_status}")
-                        print(f"\n   Agent Response:")
-                        print(f"   {final_result.alert_response[:500]}...")
-
-                print(f"\n{'='*70}")
-                print(f"🔍 Trace completed: {trace_id}")
-
-            await asyncio.sleep(1.0)
+    await asyncio.sleep(1.0)
     
     # Flush telemetry to ensure all data is sent to Application Insights
     flush_telemetry()

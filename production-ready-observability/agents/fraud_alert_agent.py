@@ -31,13 +31,13 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 cosmos_endpoint = os.environ.get("COSMOS_ENDPOINT")
-cosmos_key = os.environ.get("COSMOS_KEY")
 
-# Initialize Cosmos DB clients (conditional on credentials being available)
+# Initialize Cosmos DB clients (conditional on endpoint being available)
 alerts_container = None
-if cosmos_endpoint and cosmos_key:
+if cosmos_endpoint:
     try:
-        cosmos_client = CosmosClient(cosmos_endpoint, cosmos_key)
+        from azure.identity import DefaultAzureCredential
+        cosmos_client = CosmosClient(cosmos_endpoint, credential=DefaultAzureCredential())
         database = cosmos_client.get_database_client("FinancialComplianceDB")
         alerts_container = database.get_container_client("FraudAlerts")
         logger.info("Cosmos DB connected successfully")
@@ -45,7 +45,7 @@ if cosmos_endpoint and cosmos_key:
         logger.warning(f"Could not connect to Cosmos DB: {e}. Alerts will be stored in memory only.")
         alerts_container = None
 else:
-    logger.warning("Cosmos DB credentials not found. Alerts will be stored in memory only. Set COSMOS_ENDPOINT and COSMOS_KEY in .env file.")
+    logger.warning("Cosmos DB endpoint not found. Alerts will be stored in memory only. Set COSMOS_ENDPOINT in .env file.")
 
 # Fraud alert enumerations
 SEVERITY_LEVELS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]

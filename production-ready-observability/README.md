@@ -78,15 +78,20 @@ The observability implementation showcases best practices for spans, attributes,
 export RG=<your-resource-group>
 export LOCATION=northcentralus
 
-# Create resource group
-az group create --name $RG --location $LOCATION
-
-# Deploy all resources (AI Services, Cosmos DB, AI Search, App Insights)
-az deployment group create \
-  --resource-group $RG \
-  --template-file production-ready-observability/infra/setup.bicep \
-  --parameters @production-ready-observability/infra/setup.parameters.json
+# Deploy all resources (creates resource group, deploys infra, and grants RBAC)
+./infra/deploy.sh $RG $LOCATION
 ```
+
+> This script automatically grants your identity RBAC access to Cosmos DB and AI Search.
+> If you prefer to deploy manually, make sure to pass your principal ID:
+> ```bash
+> az group create --name $RG --location $LOCATION
+> az deployment group create \
+>   --resource-group $RG \
+>   --template-file production-ready-observability/infra/setup.bicep \
+>   --parameters @production-ready-observability/infra/setup.parameters.json \
+>   --parameters deployerPrincipalId=$(az ad signed-in-user show --query id -o tsv)
+> ```
 
 ### 1.2 Configure Environment
 

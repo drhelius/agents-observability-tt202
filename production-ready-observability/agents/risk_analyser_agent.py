@@ -33,20 +33,20 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 cosmos_endpoint = os.environ.get("COSMOS_ENDPOINT")
-cosmos_key = os.environ.get("COSMOS_KEY")
 
 # Initialize Cosmos DB clients (conditional)
 transactions_container = None
-if cosmos_endpoint and cosmos_key:
+if cosmos_endpoint:
     try:
-        cosmos_client = CosmosClient(cosmos_endpoint, cosmos_key)
+        from azure.identity import DefaultAzureCredential
+        cosmos_client = CosmosClient(cosmos_endpoint, credential=DefaultAzureCredential())
         database = cosmos_client.get_database_client("FinancialComplianceDB")
         transactions_container = database.get_container_client("Transactions")
         logger.info("Cosmos DB connected successfully")
     except Exception as e:
         logger.warning(f"Could not connect to Cosmos DB: {e}. Using basic risk analysis.")
 else:
-    logger.warning("Cosmos DB credentials not found. Using basic risk analysis. Set COSMOS_ENDPOINT and COSMOS_KEY in .env file.")
+    logger.warning("Cosmos DB endpoint not found. Using basic risk analysis. Set COSMOS_ENDPOINT in .env file.")
 
 # Risk factor configuration
 RISK_FACTORS = {
@@ -187,12 +187,12 @@ async def main():
                     
                     # Load regulations data from Cosmos DB (already indexed in Azure AI Search)
                     from azure.search.documents import SearchClient
-                    from azure.core.credentials import AzureKeyCredential
+                    from azure.identity import DefaultAzureCredential as SyncDefaultAzureCredential
                     
                     search_client = SearchClient(
                         endpoint=os.environ.get("AZURE_SEARCH_ENDPOINT"),
                         index_name="regulations-policies",
-                        credential=AzureKeyCredential(os.environ.get("AZURE_SEARCH_API_KEY"))
+                        credential=SyncDefaultAzureCredential()
                     )
                     
                     # Fetch regulations from Azure AI Search index

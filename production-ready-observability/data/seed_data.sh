@@ -19,7 +19,7 @@ echo "🚀 Starting data seeding..."
 
 # Install required Python packages
 echo "📦 Installing required Python packages..."
-pip3 install azure-cosmos azure-search-documents requests --quiet
+pip3 install azure-cosmos azure-search-documents azure-identity requests --quiet
 
 # Create Python script to handle the data import
 cat > seed_data.py << 'EOF'
@@ -29,7 +29,7 @@ from azure.cosmos import CosmosClient, PartitionKey
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import SearchIndex, SimpleField, SearchableField
-from azure.core.credentials import AzureKeyCredential
+from azure.identity import DefaultAzureCredential
 
 def load_json_data(file_path):
     """Load data from JSON or JSONL file"""
@@ -62,8 +62,9 @@ def setup_cosmos_db():
     """Set up Cosmos DB database and containers for each file in the data folder"""
     print("📦 Setting up Cosmos DB...")
     
-    # Initialize Cosmos client
-    cosmos_client = CosmosClient(os.environ['COSMOS_ENDPOINT'], os.environ['COSMOS_KEY'])
+    # Initialize Cosmos client with AAD authentication
+    credential = DefaultAzureCredential()
+    cosmos_client = CosmosClient(os.environ['COSMOS_ENDPOINT'], credential=credential)
     
     # Create database
     database_name = "FinancialComplianceDB"
@@ -132,7 +133,7 @@ def setup_search_service():
     print("🔍 Setting up Azure AI Search...")
     
     search_endpoint = os.environ['AZURE_SEARCH_ENDPOINT']
-    credential = AzureKeyCredential(os.environ['AZURE_SEARCH_API_KEY'])
+    credential = DefaultAzureCredential()
     
     index_client = SearchIndexClient(endpoint=search_endpoint, credential=credential)
     
@@ -192,7 +193,7 @@ def seed_search_data(search_endpoint, credential):
 def main():
     """Main function to orchestrate the data seeding"""
     # Check required environment variables
-    required_vars = ['COSMOS_ENDPOINT', 'COSMOS_KEY', 'AZURE_SEARCH_ENDPOINT', 'AZURE_SEARCH_API_KEY']
+    required_vars = ['COSMOS_ENDPOINT', 'AZURE_SEARCH_ENDPOINT']
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
     
     if missing_vars:
