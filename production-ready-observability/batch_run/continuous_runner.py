@@ -34,7 +34,7 @@ async def main():
 
         try:
             await run_batch_simulation(
-                num_transactions=10,
+                num_transactions=15,
                 delay_between=1.0,
                 randomize_delay=True,
                 shuffle_transactions=True,
@@ -42,7 +42,7 @@ async def main():
         except Exception as e:
             print(f"\n❌ Run #{run_number} failed: {e}")
 
-        delay_minutes = random.randint(10, 30)
+        delay_minutes = random.randint(1, 6)
         next_run = datetime.now() + timedelta(minutes=delay_minutes)
         print(f"\n⏳ Next run in {delay_minutes} minutes (at {next_run.strftime('%H:%M:%S')})")
         await asyncio.sleep(delay_minutes * 60)
